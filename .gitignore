@@ -28,4 +28,5 @@ Thumbs.db
 
 # Env
 .env
-.venv/
+.venv/.claude/
+project_qat_tensorrt.md
