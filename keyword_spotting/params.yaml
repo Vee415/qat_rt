@@ -1,0 +1,71 @@
+# Hyperparameters and configuration for Keyword Spotting pipeline
+
+# Dataset
+data:
+  dataset: "speech_commands_v2"
+  classes: ["yes", "no", "up", "down", "left", "right", "on", "off", "stop", "go"]
+  sample_rate: 16000
+  n_mfcc: 40
+  clip_length: 16000  # 1 second at 16kHz
+  n_fft: 400
+  hop_length: 160
+  n_mels: 64
+
+# Model
+model:
+  name: "KWSNet"
+  num_classes: 10
+  channels: [32, 64, 128]
+  kernel_size: 3
+  padding: 1
+
+# Training (FP32 baseline)
+training:
+  batch_size: 64
+  lr: 0.001
+  weight_decay: 0.0001
+  epochs: 30
+  scheduler: "StepLR"
+  step_size: 10
+  gamma: 0.5
+
+# Augmentation
+augmentation:
+  time_shift: 1600  # 100ms at 16kHz
+  noise_injection: true
+  noise_std: 0.01
+  noise_probability: 0.5
+
+# PTQ
+ptq:
+  calib_batches: 100
+  qconfig: "x86"  # or "qnnpack" for ARM
+
+# QAT
+qat:
+  epochs: 15
+  lr: 0.0001
+  weight_decay: 0.00001
+  freeze_bn_epoch: 3
+  scheduler: "StepLR"
+  step_size: 5
+  gamma: 0.5
+
+# ONNX Export
+onnx:
+  opset_version: 17
+  input_name: "mfcc_input"
+  output_name: "keyword_output"
+  dynamic_batch: true
+
+# TensorRT
+tensorrt:
+  fp16: true
+  int8: true
+  max_workspace_gb: 1
+  batch_size: 1
+
+# Benchmarking
+benchmark:
+  warmup_iterations: 50
+  measurement_iterations: 1000

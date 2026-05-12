@@ -1,0 +1,22 @@
+# Core
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+
+# ONNX Export & Runtime
+onnx>=1.14.0
+onnxruntime>=1.15.0
+
+# TensorRT (install separately via NVIDIA)
+# tensorrt>=8.6.0
+# pycuda>=2021.1
+
+# Experiment Tracking
+mlflow>=2.0.0
+
+# Audio Capture
+sounddevice>=0.4.6
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.65.0
