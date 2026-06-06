@@ -1,0 +1,22 @@
+[
+  {
+    "variant": "kws_trt_fp16",
+    "accuracy": "0.8807",
+    "size_mb": "0.85",
+    "latency_mean_ms": "0.38",
+    "latency_std_ms": "0.08",
+    "latency_p95_ms": "0.46",
+    "latency_p99_ms": "0.51",
+    "throughput_fps": "2640.7"
+  },
+  {
+    "variant": "kws_trt_int8",
+    "accuracy": "0.8805",
+    "size_mb": "0.68",
+    "latency_mean_ms": "0.34",
+    "latency_std_ms": "0.19",
+    "latency_p95_ms": "0.43",
+    "latency_p99_ms": "1.26",
+    "throughput_fps": "2944.8"
+  }
+]

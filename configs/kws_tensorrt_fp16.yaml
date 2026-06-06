@@ -1,0 +1,28 @@
+# TensorRT FP16 benchmark config
+# Requires CUDA + TensorRT installed
+# On Jetson: rebuild engine on-device (RTX 4060 engines won't run on Orin)
+
+runtime:
+  name: "trt_fp16"
+  backend: "trt"
+  model_path: "models/kws_trt_fp16.engine"
+  precision: "fp16"
+
+replay:
+  data_dir: "data/speech_commands"
+  target_fps: 10
+  max_files: 500
+  shuffle: true
+  seed: 42
+  speed: 1.0
+
+benchmark:
+  warmup_iterations: 50
+  max_windows: 5000
+  metrics_interval_ms: 100
+  output_dir: "benchmarks"
+  accuracy: true
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"

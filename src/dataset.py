@@ -10,9 +10,21 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+import numpy as np
 import torch
-import torchaudio
 from torch.utils.data import DataLoader, Dataset, Subset
+
+# Try torchaudio first; fall back to soundfile on platforms where
+# torchaudio's C extension doesn't load (e.g., Jetson with NVIDIA wheels).
+_TORCHAUDIO_AVAILABLE = False
+try:
+    import torchaudio
+    _TORCHAUDIO_AVAILABLE = True
+except (ImportError, OSError):
+    pass
+
+if not _TORCHAUDIO_AVAILABLE:
+    import soundfile as sf
 
 
 # 10-class subset: yes/no/up/down/left/right/on/off/stop/go
@@ -37,16 +49,27 @@ class SpeechCommandsDataset(Dataset):
         self.classes = TARGET_CLASSES
         self.class_to_idx = {c: i for i, c in enumerate(self.classes)}
 
-        self.mfcc_transform = torchaudio.transforms.MFCC(
-            sample_rate=SAMPLE_RATE,
-            n_mfcc=n_mfcc,
-            melkwargs={
-                "n_fft": 400,
-                "hop_length": 160,
-                "n_mels": 64,
-                "center": False,
-            },
-        )
+        if _TORCHAUDIO_AVAILABLE:
+            self.mfcc_transform = torchaudio.transforms.MFCC(
+                sample_rate=SAMPLE_RATE,
+                n_mfcc=n_mfcc,
+                melkwargs={
+                    "n_fft": 400,
+                    "hop_length": 160,
+                    "n_mels": 64,
+                    "center": False,
+                },
+            )
+        else:
+            from src.realtime_mfcc import _PurePytorchMFCC
+            self.mfcc_transform = _PurePytorchMFCC(
+                sample_rate=SAMPLE_RATE,
+                n_mfcc=n_mfcc,
+                n_fft=400,
+                hop_length=160,
+                n_mels=64,
+                center=False,
+            )
 
         self.file_list = []
         self.labels = []
@@ -129,12 +152,31 @@ class SpeechCommandsDataset(Dataset):
         filepath = self.file_list[idx]
         label = self.labels[idx]
 
-        waveform, sr = torchaudio.load(str(filepath))
+        # Load audio — torchaudio if available, soundfile fallback for Jetson
+        if _TORCHAUDIO_AVAILABLE:
+            waveform, sr = torchaudio.load(str(filepath))
+        else:
+            audio, sr = sf.read(str(filepath), dtype='float32')
+            waveform = torch.from_numpy(audio)
+            if waveform.ndim == 1:
+                waveform = waveform.unsqueeze(0)  # (1, n_samples)
+            elif waveform.ndim == 2:
+                waveform = waveform.T  # soundfile returns (n_samples, channels)
 
         # Resample if needed
         if sr != SAMPLE_RATE:
-            resampler = torchaudio.transforms.Resample(sr, SAMPLE_RATE)
-            waveform = resampler(waveform)
+            if _TORCHAUDIO_AVAILABLE:
+                resampler = torchaudio.transforms.Resample(sr, SAMPLE_RATE)
+                waveform = resampler(waveform)
+            else:
+                # Simple linear interpolation resampling for Jetson fallback
+                # Speech Commands dataset is already 16kHz, so this rarely triggers
+                import torch.nn.functional as F
+                waveform = waveform.unsqueeze(0)  # (1, 1, N) for interpolate
+                new_len = int(waveform.shape[-1] * SAMPLE_RATE / sr)
+                waveform = F.interpolate(waveform, size=new_len, mode='linear',
+                                         align_corners=False)
+                waveform = waveform.squeeze(0)
 
         # Convert to mono if stereo
         if waveform.shape[0] > 1:

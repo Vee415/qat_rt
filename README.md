@@ -53,8 +53,28 @@ keyword_spotting/
 │   ├── generate_report.py    # Markdown report generation
 │   ├── audio_capture.py      # Real-time mic capture with ring buffer
 │   ├── realtime_mfcc.py      # MFCC extraction matching training pipeline
-│   ├── inference_engine.py   # ONNX + TRT inference backends
-│   └── keyword_detector.py   # Softmax, threshold, cooldown post-processing
+│   ├── inference_engine.py   # ONNX + TRT inference backends + cold-start timing
+│   ├── keyword_detector.py   # Softmax, threshold, cooldown post-processing
+│   ├── replay_benchmark.py  # Config-driven replay benchmark runner
+│   ├── health_check.py       # Pipeline health check CLI
+│   ├── logging_config.py    # Structured logging setup
+│   ├── replay/
+│   │   └── file_replay_engine.py  # File-based replay at configurable FPS
+│   └── metrics/
+│       ├── system_metrics.py # RAM/CPU/GPU collection (psutil + jtop)
+│       └── metrics_logger.py # BenchmarkResult dataclass + CSV/JSON/MD output
+├── configs/
+│   ├── kws_onnx.yaml          # ONNX CPU benchmark config
+│   ├── kws_tensorrt_fp16.yaml # TRT FP16 benchmark config
+│   └── kws_tensorrt_int8.yaml # TRT INT8 benchmark config
+├── tests/
+│   ├── test_preprocessing.py  # MFCC extraction unit tests
+│   └── test_postprocessing.py # Softmax/threshold/cooldown unit tests
+├── docs/
+│   ├── runbook.md           # Setup, run, debug, known issues
+│   ├── failure_cases.md     # Common failures and diagnosis
+│   └── jetson_setup.md      # Jetson Orin Nano Super setup guide
+├── benchmarks/              # Output directory for benchmark results
 ├── realtime_demo.py          # Real-time keyword spotting CLI
 ├── train_baseline.py         # FP32 training script
 ├── train_qat.py              # QAT 3-stage training script
@@ -65,6 +85,7 @@ keyword_spotting/
 ├── generate_report.py        # Report generation script
 ├── params.yaml               # Central hyperparameter config
 ├── requirements.txt
+├── Dockerfile                # Multi-platform (x86 + Jetson)
 └── reports/
     └── benchmark_report.md   # Full benchmark report
 ```
@@ -143,6 +164,29 @@ KWSNet: 3x Conv+BN+ReLU+MaxPool → AdaptiveAvgPool → Linear(128, 10)
 Softmax → Keyword Detection (threshold + cooldown)
 ```
 
+### Replay Benchmark Pipeline
+
+```
+.wav files (Speech Commands test set)
+     │
+     ▼
+FileReplayEngine (streams at configurable FPS, tracks dropped windows)
+     │
+     ▼
+MFCC Extraction (RealtimeMFCC, per-sample normalization)
+     │
+     ▼
+Inference Engine (ONNX Runtime or TensorRT, p50/p95/p99 latency)
+     │
+     ▼
+Keyword Detection (softmax + threshold + cooldown)
+     │
+     ▼
+MetricsLogger (CSV + JSON + markdown summary)
+     +
+SystemMetricsCollector (RAM, CPU, GPU in background thread)
+```
+
 **KWSNet**: 94K parameters, 3-block CNN. Input: (1, 1, 40, 98), Output: (1, 10).
 
 Quantizable variant (`KWSNetQuantizable`) adds `QuantStub`/`DeQuantStub` and `fuse_model()` for Conv+BN+ReLU fusion.
@@ -159,3 +203,57 @@ Quantizable variant (`KWSNetQuantizable`) adds `QuantStub`/`DeQuantStub` and `fu
 ## Hardware
 
 Benchmarked on NVIDIA GeForce RTX 4060 Laptop GPU with TensorRT 10.16.
+
+## Edge Replay Benchmark
+
+Replay-based inference benchmarking for edge deployment. Reads .wav files at real-time rates and measures latency, throughput, accuracy, RAM/CPU/GPU utilization, cold-start time, and dropped windows.
+
+### Quick Start
+
+```bash
+# Health check
+python -m src.health_check --config configs/kws_onnx.yaml
+
+# Run ONNX CPU benchmark
+python src/replay_benchmark.py --config configs/kws_onnx.yaml
+
+# Run TensorRT FP16 benchmark (requires CUDA + TensorRT)
+python src/replay_benchmark.py --config configs/kws_tensorrt_fp16.yaml
+
+# Run TensorRT INT8 benchmark (optional)
+python src/replay_benchmark.py --config configs/kws_tensorrt_int8.yaml
+```
+
+### Benchmark Metrics
+
+| Metric | Why It Matters |
+|--------|---------------|
+| p50/p95/p99 latency | Real-time deployment discipline — p99 reveals tail latency |
+| Throughput (fps) | Whether the system can keep up with input rate |
+| Dropped windows | Overload behavior — how many frames missed their deadline |
+| RAM usage | Edge-device awareness — Jetson has 8GB unified memory |
+| CPU/GPU utilization | Hardware awareness — is the device being used efficiently? |
+| Cold-start time | Production startup cost — time from load to first inference |
+| Model size | Deployment footprint — matters for memory-constrained devices |
+| Accuracy before/after FP16/INT8 | Optimization tradeoff awareness |
+
+### Jetson Orin Nano Super
+
+TRT engines must be rebuilt on the Jetson (architecture-specific). See [docs/jetson_setup.md](docs/jetson_setup.md) for full setup instructions.
+
+```bash
+# On Jetson: rebuild engines first
+python build_trt_engines.py
+
+# Then run benchmark
+python src/replay_benchmark.py --config configs/kws_tensorrt_fp16.yaml
+```
+
+### Configuration
+
+Benchmark configs are in `configs/`. Each YAML specifies:
+- `runtime`: backend, model path, precision, providers
+- `replay`: data dir, target FPS, max files, shuffle, speed
+- `benchmark`: warmup, max windows, metrics interval, output dir
+
+See [docs/runbook.md](docs/runbook.md) for full documentation.

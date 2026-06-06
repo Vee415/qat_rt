@@ -69,3 +69,32 @@ tensorrt:
 benchmark:
   warmup_iterations: 50
   measurement_iterations: 1000
+
+# Replay Engine (for edge benchmarking)
+replay:
+  data_dir: "data/speech_commands"
+  target_fps: 10          # 10 windows per second = 100ms stride
+  max_files: null         # null = all test files
+  shuffle: true
+  seed: 42
+  speed: 1.0             # 1.0 = real-time, >1.0 = stress test
+
+# Edge Benchmark
+edge_benchmark:
+  warmup_iterations: 50
+  max_windows: 5000
+  metrics_interval_ms: 100
+  output_dir: "benchmarks"
+  runtimes:
+    - name: "onnx_cpu"
+      backend: "onnx"
+      model_path: "models/kws_fp32.onnx"
+      precision: "fp32"
+    - name: "trt_fp16"
+      backend: "trt"
+      model_path: "models/kws_trt_fp16.engine"
+      precision: "fp16"
+    - name: "trt_int8"
+      backend: "trt"
+      model_path: "models/kws_trt_int8.engine"
+      precision: "int8"

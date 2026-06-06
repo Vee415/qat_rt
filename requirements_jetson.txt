@@ -1,0 +1,28 @@
+# Requirements for Jetson Orin Nano Super
+# JetPack provides: torch, torchaudio, numpy, onnxruntime, tensorrt, pycuda, CUDA, cuDNN
+# Only install what JetPack does NOT provide
+
+# ONNX (not included in JetPack)
+onnx>=1.14.0
+
+# Experiment Tracking
+mlflow>=2.0.0
+
+# Audio Capture
+sounddevice>=0.4.6
+
+# System Metrics (edge benchmarking)
+psutil>=5.9.0
+
+# Audio file I/O (replay engine)
+soundfile>=0.12.0
+
+# Testing
+pytest>=7.0.0
+
+# Jetson-specific (GPU monitoring)
+jetson-stats>=4.2.0
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.65.0

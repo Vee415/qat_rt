@@ -1,0 +1,28 @@
+# ONNX Runtime CPU benchmark config
+# Works on any machine (no GPU required)
+
+runtime:
+  name: "onnx_cpu"
+  backend: "onnx"
+  model_path: "models/kws_fp32.onnx"
+  precision: "fp32"
+  providers: ["CPUExecutionProvider"]
+
+replay:
+  data_dir: "data/speech_commands"
+  target_fps: 10            # 10 windows per second = 100ms stride
+  max_files: 500            # limit for quick runs; null = all test files
+  shuffle: true
+  seed: 42
+  speed: 1.0                 # 1.0 = real-time, >1.0 = stress test
+
+benchmark:
+  warmup_iterations: 50
+  max_windows: 5000           # cap total inference windows
+  metrics_interval_ms: 100    # system metrics sampling rate
+  output_dir: "benchmarks"
+  accuracy: true              # compute accuracy against ground-truth labels
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"

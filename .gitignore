@@ -28,5 +28,12 @@ Thumbs.db
 
 # Env
 .env
-.venv/.claude/
+.venv/
+
+# Claude Code
+.claude/
+
+# Benchmark outputs (regenerated)
+benchmarks/results.csv
+benchmarks/results.json
 project_qat_tensorrt.md

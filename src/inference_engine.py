@@ -9,6 +9,7 @@ Both backends accept input shape (1, 1, 40, 98) and produce
 output shape (1, 10) with raw logits (no softmax applied).
 """
 
+import os
 import time
 from abc import ABC, abstractmethod
 from collections import deque
@@ -85,8 +86,24 @@ class TRTBackend(InferenceBackend):
             self.engine = trt.Runtime(self.logger).deserialize_cuda_engine(f.read())
         self.context = self.engine.create_execution_context()
 
+        # Get actual tensor names from the engine (may differ from defaults)
+        self.input_name = None
+        self.output_name = None
+        for i in range(self.engine.num_io_tensors):
+            name = self.engine.get_tensor_name(i)
+            if self.engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
+                self.input_name = name
+            elif self.engine.get_tensor_mode(name) == trt.TensorIOMode.OUTPUT:
+                self.output_name = name
+
+        # Fallback to common names if detection fails
+        if self.input_name is None:
+            self.input_name = "mfcc"
+        if self.output_name is None:
+            self.output_name = "logits"
+
         # Set fixed input shape
-        self.context.set_input_shape("mfcc_input", (1, 1, 40, 98))
+        self.context.set_input_shape(self.input_name, (1, 1, 40, 98))
 
         # Allocate GPU buffers
         input_size = 1 * 1 * 40 * 98
@@ -101,8 +118,8 @@ class TRTBackend(InferenceBackend):
         np.copyto(self.input_host, np.random.randn(input_size).astype(np.float32))
         for _ in range(10):
             cuda.memcpy_htod_async(self.input_device, self.input_host, self.stream)
-            self.context.set_tensor_address("mfcc_input", int(self.input_device))
-            self.context.set_tensor_address("keyword_output", int(self.output_device))
+            self.context.set_tensor_address(self.input_name, int(self.input_device))
+            self.context.set_tensor_address(self.output_name, int(self.output_device))
             self.context.execute_async_v3(stream_handle=self.stream.handle)
             cuda.memcpy_dtoh_async(self.output_host, self.output_device, self.stream)
             self.stream.synchronize()
@@ -113,8 +130,8 @@ class TRTBackend(InferenceBackend):
 
         np.copyto(self.input_host, mfcc.ravel())
         cuda.memcpy_htod_async(self.input_device, self.input_host, self.stream)
-        self.context.set_tensor_address("mfcc_input", int(self.input_device))
-        self.context.set_tensor_address("keyword_output", int(self.output_device))
+        self.context.set_tensor_address(self.input_name, int(self.input_device))
+        self.context.set_tensor_address(self.output_name, int(self.output_device))
         self.context.execute_async_v3(stream_handle=self.stream.handle)
         cuda.memcpy_dtoh_async(self.output_host, self.output_device, self.stream)
         self.stream.synchronize()
@@ -138,6 +155,7 @@ class InferenceEngine:
     def __init__(self, backend: InferenceBackend):
         self.backend = backend
         self._latencies = deque(maxlen=1000)
+        self.cold_start_ms: Optional[float] = None
 
     def predict(self, mfcc: np.ndarray) -> tuple:
         """Run inference and return (logits, latency_ms)."""
@@ -173,13 +191,18 @@ class InferenceEngine:
 def create_engine(backend: str, model_path: str) -> InferenceEngine:
     """Factory function to create the appropriate inference engine.
 
+    Measures cold-start time (engine load + warmup) and stores it
+    on the returned InferenceEngine instance.
+
     Args:
         backend: 'onnx' or 'trt'
         model_path: Path to model file (.onnx or .engine)
 
     Returns:
-        InferenceEngine instance
+        InferenceEngine instance with cold_start_ms populated
     """
+    start = time.perf_counter()
+
     if backend == 'onnx':
         print(f"Loading ONNX model: {model_path}")
         b = ONNXBackend(model_path)
@@ -189,4 +212,8 @@ def create_engine(backend: str, model_path: str) -> InferenceEngine:
     else:
         raise ValueError(f"Unknown backend: {backend}. Use 'onnx' or 'trt'.")
 
-    return InferenceEngine(b)
+    engine = InferenceEngine(b)
+    engine.cold_start_ms = (time.perf_counter() - start) * 1000
+    print(f"Cold start: {engine.cold_start_ms:.1f}ms")
+
+    return engine

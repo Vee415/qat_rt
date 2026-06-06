@@ -1,0 +1,82 @@
+[
+  {
+    "variant": "PyTorch FP32 (CPU)",
+    "accuracy": "0.8812",
+    "size_mb": "0.37",
+    "latency_mean_ms": "1.37",
+    "latency_std_ms": "0.14",
+    "latency_p95_ms": "1.57",
+    "latency_p99_ms": "1.65",
+    "throughput_fps": "732.4"
+  },
+  {
+    "variant": "PyTorch FP32 (CUDA)",
+    "accuracy": "0.8812",
+    "size_mb": "0.37",
+    "latency_mean_ms": "0.43",
+    "latency_std_ms": "0.07",
+    "latency_p95_ms": "0.52",
+    "latency_p99_ms": "0.63",
+    "throughput_fps": "2299.2"
+  },
+  {
+    "variant": "PyTorch PTQ INT8 (CPU)",
+    "accuracy": "0.8721",
+    "size_mb": "0.10",
+    "latency_mean_ms": "1.13",
+    "latency_std_ms": "0.08",
+    "latency_p95_ms": "1.25",
+    "latency_p99_ms": "1.36",
+    "throughput_fps": "886.8"
+  },
+  {
+    "variant": "PyTorch QAT INT8 (CPU)",
+    "accuracy": "0.8822",
+    "size_mb": "0.10",
+    "latency_mean_ms": "1.10",
+    "latency_std_ms": "0.09",
+    "latency_p95_ms": "1.23",
+    "latency_p99_ms": "1.29",
+    "throughput_fps": "907.8"
+  },
+  {
+    "variant": "ONNX CPUExecutionProvider",
+    "accuracy": "0.8812",
+    "size_mb": "0.36",
+    "latency_mean_ms": "0.15",
+    "latency_std_ms": "0.02",
+    "latency_p95_ms": "0.18",
+    "latency_p99_ms": "0.19",
+    "throughput_fps": "6509.3"
+  },
+  {
+    "variant": "ONNX CUDAExecutionProvider+CPUExecutionProvider",
+    "accuracy": "0.8812",
+    "size_mb": "0.36",
+    "latency_mean_ms": "0.19",
+    "latency_std_ms": "0.04",
+    "latency_p95_ms": "0.25",
+    "latency_p99_ms": "0.29",
+    "throughput_fps": "5211.5"
+  },
+  {
+    "variant": "ORT TensorRT FP16",
+    "accuracy": "0.8812",
+    "size_mb": "0.36",
+    "latency_mean_ms": "0.27",
+    "latency_std_ms": "0.13",
+    "latency_p95_ms": "0.42",
+    "latency_p99_ms": "0.78",
+    "throughput_fps": "3653.2"
+  },
+  {
+    "variant": "ORT TensorRT INT8",
+    "accuracy": "0.8812",
+    "size_mb": "0.36",
+    "latency_mean_ms": "0.29",
+    "latency_std_ms": "0.05",
+    "latency_p95_ms": "0.38",
+    "latency_p99_ms": "0.46",
+    "throughput_fps": "3418.7"
+  }
+]
